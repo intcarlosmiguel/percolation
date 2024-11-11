@@ -7,7 +7,7 @@
 #include "bib/heap.h"
 int N;
 
-void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster){
+void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster,bool plot){
     struct minimalHeap Heap;
     Heap.size = 0;
 
@@ -16,9 +16,6 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster){
     srand(seed);
 
     bool* ocupado = calloc(N,sizeof(bool));
-    bool* Lx = calloc(2,sizeof(bool));
-    bool* Ly = calloc(2,sizeof(bool));
-    bool* passou = calloc(N,sizeof(bool));
     bool* in_cluster = calloc(N,sizeof(bool));
 
     Heap.value = calloc(N,sizeof(double));
@@ -26,25 +23,24 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster){
     Heap.index = malloc(0*sizeof(int));
 
     double anterior = Heap.value[site];
-    ocupado[site] = 1;
+    ocupado[site] = true;
+
     FILE* arquivo;
     int cascate = 1;
     char filename[100];
-    snprintf(filename, sizeof(filename), "./output/cascate/cascate_%d_%d.txt",L,G);
-    if(G == 0)arquivo = fopen(filename, "a");
+    snprintf(filename, sizeof(filename), "./output/cascate/cascate_%d.txt",L);
+    if(G == 0) arquivo = fopen(filename, "a");
+
     in_cluster[site] = true;
     cluster[G]++;
     while (1) {
         
         for (i = 1; i < 5; i++) {
             viz = vizinho(site,i,L);
-            //if(G==6) if(site == 76365) printf("Vizinho: %d\n",viz);
             if(viz == -1) continue;
-            //if(G==1)printf("Existe: %d\n",existe[viz]);
-            //if(G==1) if(existe[viz]) print_vector(Heap.index,Heap.size);
-            if ((ocupado[viz] == 0) && (!passou[viz]) && (existe[viz])){
+            if ((!ocupado[viz]) && (existe[viz])){
                 Heap = add_heap(&Heap,viz);
-                passou[viz] = true;
+                ocupado[viz] = true;
             }
         }
         site = Heap.index[0];
@@ -59,7 +55,7 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster){
 
         }
         heapify_down(&Heap);
-        ocupado[site] = 1;
+        ocupado[site] = true;
         cluster[G]++;
         if (X(site, L) == 0) break;
         if (X(site, L) == L - 1) break;
@@ -67,14 +63,18 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster){
         if (Y(site, L) == L - 1) break;
     }
     if(G == 0) fclose(arquivo);
+    if(plot){
+        FILE* file;
+        sprintf(filename,"./output/plot/plot_%d_%d.txt",L,G);
+        file = fopen(filename, "w");
+        for ( i = 0; i < N; i++)if(in_cluster[i]) fprintf(file,"%d\n",i);
+        fclose(file);
+    }
     free(Heap.value);
     free(Heap.index);
-    free(Lx);
-    free(Ly);
     free(ocupado);
-    free(passou);
     free(existe);
-    if(G<500)invasive_percolation(L,seed+i,in_cluster,G+1,cluster);
+    if(G<500)invasive_percolation(L,seed+i,in_cluster,G+1,cluster,plot);
     else free(in_cluster);
 }
 
@@ -87,16 +87,17 @@ void main(int argc, char *argv[]) {
 
     int i,j;
     int** cluster = (int**)malloc(redes*sizeof(int*));
-    omp_set_num_threads(8);
     int count = 0;
-    #pragma omp parallel for schedule(dynamic)
+    //omp_set_num_threads(11);
+    //#pragma omp parallel for
     for ( i = 0; i < redes; i++){
         cluster[i] = (int*)calloc(500,sizeof(int));
         bool* existe = calloc(N,sizeof(bool));
         for ( j = 0; j < N; j++) existe[j] = true;
-        invasive_percolation(L,seed+i+600,existe,0,cluster[i]);
+        invasive_percolation(L,seed+i+600,existe,0,cluster[i],redes == 1);
         count++;
-        if(count%100 == 0) printf("Já foi: %d,%d",count,L);
+        printf("%d\n",i+1);
+        if(count%100 == 0) printf("Já foi: %d,%d\n",count,L);
     }
     
     FILE* file;
