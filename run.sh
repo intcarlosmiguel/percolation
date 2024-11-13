@@ -1,2 +1,2 @@
-gcc main.c -o main -O3 -lm -fopenmp
-./main 512 2 1
+gcc main.c -o main -lm -O3
+./main 512 42 500

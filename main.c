@@ -7,7 +7,7 @@
 #include "bib/heap.h"
 int N;
 
-void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster,bool plot){
+void invasive_percolation(int L,int seed,bool* existe,int G,double* cluster,bool plot,int*cluster_0){
     struct minimalHeap Heap;
     Heap.size = 0;
 
@@ -32,7 +32,7 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster,bool pl
     if(G == 0) arquivo = fopen(filename, "a");
 
     in_cluster[site] = true;
-    cluster[G]++;
+    int G_cluster = 1;
     while (1) {
         
         for (i = 1; i < 5; i++) {
@@ -52,11 +52,11 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster,bool pl
                 cascate = 1;
                 anterior = Heap.value[site];
             }
-
+            *cluster_0 += 1;
         }
         heapify_down(&Heap);
         ocupado[site] = true;
-        cluster[G]++;
+        G_cluster++;
         if (X(site, L) == 0) break;
         if (X(site, L) == L - 1) break;
         if (Y(site, L) == 0) break;
@@ -74,7 +74,11 @@ void invasive_percolation(int L,int seed,bool* existe,int G,int* cluster,bool pl
     free(Heap.index);
     free(ocupado);
     free(existe);
-    if(G<500)invasive_percolation(L,seed+i,in_cluster,G+1,cluster,plot);
+    if(G<500){
+        if(G != 0)cluster[G] += (double)G_cluster/ *cluster_0;
+        //if(G != 0) printf("%f\n",(double)G_cluster/ *cluster_0);
+        invasive_percolation(L,seed+i,in_cluster,G+1,cluster,plot,cluster_0);
+    }
     else free(in_cluster);
 }
 
@@ -86,29 +90,30 @@ void main(int argc, char *argv[]) {
     unsigned int redes = atoi(argv[3]);
 
     int i,j;
-    int** cluster = (int**)malloc(redes*sizeof(int*));
+    double** cluster = (double**)malloc(redes*sizeof(double*));
     int count = 0;
     //omp_set_num_threads(11);
     //#pragma omp parallel for
+    int cluster_0;
     for ( i = 0; i < redes; i++){
-        cluster[i] = (int*)calloc(500,sizeof(int));
+        cluster[i] = (double*)calloc(500,sizeof(double));
         bool* existe = calloc(N,sizeof(bool));
         for ( j = 0; j < N; j++) existe[j] = true;
-        invasive_percolation(L,seed+i+600,existe,0,cluster[i],redes == 1);
+        cluster_0 = 0;
+        invasive_percolation(L,seed+i+600,existe,0,cluster[i],i == 0,&cluster_0);
         count++;
-        printf("%d\n",i+1);
         if(count%100 == 0) printf("Já foi: %d,%d\n",count,L);
     }
     
     FILE* file;
     char filename[100];
-    sprintf(filename,"./output/df_%d.txt",L);
+    sprintf(filename,"./output/G_%d.txt",L);
     file = fopen(filename, "w");
     double soma = 0;
     for ( i = 0; i < 500; i++){
         soma = 0;
-        for ( j = 0; j < redes; j++) soma += cluster[j][i];
-        fprintf(file,"%d %f\n",i,soma/redes);
+        for ( j = 0; j < redes; j++)soma += cluster[j][i];
+        fprintf(file,"%d %f\n",i,(double)soma/redes);
     }
     fclose(file);
     free(cluster);
